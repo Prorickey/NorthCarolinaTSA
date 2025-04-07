@@ -1,0 +1,35 @@
+{
+  "name": "website",
+  "version": "0.3.30",
+  "private": true,
+  "scripts": {
+    "dev": "npx next dev --turbopack",
+    "build": "npx next build",
+    "start": "npx next start",
+    "lint": "npx next lint",
+    "docker": "node docker.js"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "argon2": "^0.41.1",
+    "date-fns": "^4.1.0",
+    "next": "15.2.4",
+    "next-auth": "^4.24.11",
+    "pg": "^8.14.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.11.11",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.4",
+    "jose": "^6.0.10",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

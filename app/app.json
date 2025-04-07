@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "North Carolina TSA",
+    "slug": "nctsa",
+    "version": "1.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/images/nctsa.jpeg",
+    "scheme": "myapp",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.northcarolinatsa.ios",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "provisioningProfile": "../certs/distribution/ProvisioningProfile.mobileprovision",
+      "buildNumber": "9",
+      "config": {
+        "usesPushNotifications": true,
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/nctsa.jpeg",
+        "backgroundColor": "#ffffff"
+      },
+      "googleServicesFile": "./google-services.json",
+      "versionCode": "9",
+      "package": "com.northcarolinatsa.android"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+    
+  }
+}

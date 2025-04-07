@@ -1,0 +1,322 @@
+# Backend deployment - run that johnson
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: nctsa
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      imagePullSecrets:
+        - name: nctsa-registry-creds
+      containers:
+        - name: backend
+          image: docker.prorickey.xyz/prorickey/nctsa-backend:0.2.2
+          env:
+            - name: DEPLOY
+              value: release
+            - name: DB_HOST
+              value: postgres-service
+            - name: REDIS_HOST
+              value: redis-service
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: nctsa
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: REFRESH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: REFRESH_KEY
+            - name: SHORT_LIVED_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: SHORT_LIVED_KEY
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: nctsa
+  labels:
+    app: backend
+spec:
+  type: LoadBalancer
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 7892
+      targetPort: 8080
+---
+# End of Backend
+
+# Postgresql deployment
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: nctsa
+  labels:
+    app: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+---
+# PostgreSQL Deployment - run postgres
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: nctsa
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: nctsa
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+---
+# PostgreSQL Service - allows connections internally, not exposed externally
+# Can still be accessed outside vm on the host machine though
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: nctsa
+  labels:
+    app: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-host-access
+  namespace: nctsa
+  labels:
+    app: postgres
+spec:
+  type: NodePort
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+--- 
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: nctsa
+  labels:
+    app: postgres
+type: Opaque
+data:
+  POSTGRES_USER: user
+  POSTGRES_PASSWORD: pass
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-secret
+  namespace: nctsa
+  labels:
+    app: postgres
+type: Opaque
+data:
+  REFRESH_KEY: abc
+  SHORT_LIVED_KEY: abc
+---
+# End of postgresql
+
+# Redis and redis stack deployment
+# Redis stack is only available to me, but it allows
+# me to access the redis server from a web gui
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: nctsa
+  name: redis-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: nctsa
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis/redis-stack:latest
+        ports:
+        - containerPort: 6379
+        - containerPort: 8001
+        volumeMounts:
+        - mountPath: /data
+          name: redis-storage
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim:
+          claimName: redis-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: nctsa
+  labels:
+    app: redis
+spec:
+  selector:
+    app: redis
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-stack-host-access
+  namespace: nctsa
+  labels:
+    app: redis
+spec:
+  type: NodePort
+  selector:
+    app: redis
+  ports:
+    - protocol: TCP
+      port: 8001
+      targetPort: 8001
+--- 
+# End of redis and redis stack
+
+# Management website deployment 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: website
+  namespace: nctsa
+  labels:
+    app: website
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: website
+  template:
+    metadata:
+      labels:
+        app: website
+    spec:
+      imagePullSecrets:
+        - name: nctsa-registry-creds
+      containers:
+        - name: website
+          image: docker.prorickey.xyz/prorickey/nctsa-website:0.3.0
+          env:
+            - name: API_URL
+              value: https://nctsa-api.bedson.tech
+            - name: NEXTAUTH_SECRET
+              value: abc
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: website-service
+  namespace: nctsa
+  labels:
+    app: website
+spec:
+  type: LoadBalancer
+  selector:
+    app: website
+  ports:
+    - protocol: TCP
+      port: 7218
+      targetPort: 3000
